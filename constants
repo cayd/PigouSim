@@ -181,23 +181,35 @@ class Producer(Entity):
         # the slope of a line that more or less functions as a predictor of output based on price
         # form: kW output = priceCurve * price of power, where priceCurve is currently hardcoded to .5: CM
         self.priceCurve = getPriceCurve(line)
-        self.outputList = []
-        self.output = 0
+        self.outputList = self.predictOutput()
+        self.output = 0 #### this might not be used anymore
         self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " Producer\n")
 
     
-    #finds outputList as just what we predicted it to be from the sin function; at some point add a little to every point so that you overproduce power and dont leave anyone without
+    # finds outputList as just what we predicted it to be from the sin function; 
+    # eventually add a little to every point so that you overproduce power and dont leave anyone without
     def receiveConsumptionPrediction(self, predictionsList, *args):
         self.outputList = predictionsList
         self.out.write("Time " + str(self.engine.now) + ": receiveConsumptionPrediction occuring at " + self.name + " Producer\n")
-
+    
+    #to replace the above function, this should just generate the prediction so it does not have to wait to receive it. it is the same as the city's version
+    def predictOutput(self, *args):
+        expectedOutput = []
+        for time in range(24):
+            fi = (getPop(self.line) * 1000000 * perCapita[getState(self.line)])
+            expected = fi/3 * sin(pi/12 * time) + fi
+            expectedOutput.append(expected)
+        self.out.write("Time " + str(self.engine.now) + ": predictDraw occuring at " + self.name + " City\n")
+        return expectedOutput
         
+    #it is trying to send production before it has received the consumption prediction even: CM
+    
     #sends to the city, which will form a local net and send to the gridmaster
     def sendProduction(self, *args):
-        self.reqService(minDelay, "receiveProduction", self.output, self.name+"City", 1)
+        print int(self.engine.now), "outputList", self.outputList
+        self.reqService(minDelay, "receiveProduction", self.outputList[int(self.engine.now)], self.name+"City", 1)
         self.out.write("Time " + str(self.engine.now) + ": sendProduction occuring at " + self.name + " Producer\n")
-
-
+        
         
 #The city Entity, a combination of city and consumer that serves as the primary reference for all geographically local happenings
 class City(Entity):
@@ -205,12 +217,12 @@ class City(Entity):
         super(City, self).__init__(baseInfo)
         self.line = line
         self.name = getName(line)
+        self.powerDraw = 0
         #this list is the expected draw of the city, with the indexes as the time that draw is expected, e.g. expectedPowerDraw[1] = (expected draw at hour 1)
-        self.expectedPowerDraw = []
-        self.powerDraw = self.updateDraw(self.engine.now)###### find the right statement for this
+        self.expectedPowerDraw = self.predictDraw()
+        print self.expectedPowerDraw
         self.powerProduced = 0 # to be updated as nodes send in their power totals: CM
-        #self.reqService(minDelay, "sendConsumptionPrediction", None, self.name+"City", 1) #handled already in the initial driver loop
-        self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " City\n")
+        self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " City\n\t" + str(self.expectedPowerDraw))
     
     def getDifference(self):
         return self.powerProduced - self.powerDraw
@@ -220,17 +232,16 @@ class City(Entity):
         self.out.write("Time " + str(self.engine.now) + ": receiveProduction occuring at " + self.name + " City\n")
         #once production is received, net is passed on
         self.reqService(minDelay, "sendNet", None, self.name+"City", 1)
-
         
     #this gives an exact value, not randomized, based on the prediction curve
     def predictDraw(self, *args):
         expectedPowerDraw = []
         for time in range(24):
-            print time
             fi = (getPop(self.line) * 1000000 * perCapita[getState(self.line)])
             expected = fi/3 * sin(pi/12 * time) + fi
             expectedPowerDraw.append(expected)
         self.out.write("Time " + str(self.engine.now) + ": predictDraw occuring at " + self.name + " City\n")
+        return expectedPowerDraw
 
     #fudges with the expected value to produce what will actually be considered the current consumption in real time
     def updateDraw(self, time, *args):
