@@ -21,7 +21,6 @@ for city in grid:
 #hmmm. actually, it does do what it says it does. not sure why: CM
 for i in xrange(int(endTime/minDelay)):
     #simianEngine.schedService(i, "checkNet", i, "GridMaster", 0) # i never wrote this service. wonder if it was important: CM
-    print i
     for j in citiesList:
         simianEngine.schedService(i, "updateDraw", i, j+"City", 1)
         
