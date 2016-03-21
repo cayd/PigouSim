@@ -12,15 +12,15 @@ simName, startTime, endTime, minDelay, useMPI = "GRID", 0, 24, 1.0/3600.0, False
 #consumption function is in the form of f(Theta)=-Asin(pi/12 Theta)+Fi, with the further simplification that A = Fi/3
 
 #        ID    Location(lat, lon)     String ID(name)    Population in millions   State   priceCurve (explanation in Producer)
-grid =  [[1,   [32.7150, 117.1625],   "San Diego",       1.356,                   "CA",      .5],
-         [2,   [34.0500, 118.2500],   "Los Angeles",     18.55,                   "CA",      .5],
+grid =  [[1,   [32.7150, 117.1625],   "SanDiego",       1.356,                   "CA",      .5],
+         [2,   [34.0500, 118.2500],   "LosAngeles",     18.55,                   "CA",      .5],
          [3,   [38.5556, 121.4689],   "Sacramento",      .48,                     "CA",      .5],
-         [4,   [37.7833, 122.4167],   "San Francisco",   .837,                    "CA",      .5],
+         [4,   [37.7833, 122.4167],   "SanFrancisco",   .837,                    "CA",      .5],
          [5,   [41.8369, 87.6847],    "Chicago",         2.719,                   "IL",      .5],
          [6,   [42.3314, 83.0458],    "Detroit",         .689,                    "MI",      .5],
          [7,   [42.3601, 71.0589],    "Boston",          .646,                    "MA",      .5],
          [8,   [25.7753, 80.2089],    "Miami",           .418,                    "FL",      .5],
-         [9,   [40.7127, 74.0059],    "New York",        8.406,                   "NY",      .5],
+         [9,   [40.7127, 74.0059],    "NewYork",        8.406,                   "NY",      .5],
          [10,  [39.8333, 97.4167],    "CENTER",          0,                       "US",      .5]]
 
 #              Voltage    Points connected by lines of such voltage
@@ -28,56 +28,60 @@ connections = [[2000,     (1,2), (1,3), (7,9), (9,5), (9,2)],
                [1000,     (2,3), (5,6), (9,8)],
                [500,      (1,4)]]              
                  
-perCapita = {"US":12146,#kWh/capita in 2010
-             "WY":27457, 
-             "KY":21590, 
-             "ND":19477,
-             "LA":18852,
-             "SC":17903,
-             "AL":17293,
-             "WV":17290,
-             "MS":16793,
-             "AR":16519,
-             "IN":16315,
-             "NE":16293,
-             "TN":16117,
-             "OK":15568,
-             "IA":15048,
-             "GA":14578,
-             "VA":14489,
-             "ID":14475,
-             "MO":14345,
-             "NC":14325,
-             "KS":14263,
-             "TX":14179,
-             "MT":13992,
-             "SD":13916,
-             "WA":13557,
-             "OH":13388,
-             "DE":12904,
-             "MN":12845,
-             "NV":12497,
-             "FL":12379,
-             "WI":12159,
-             "OR":12077,
-             "PA":11759,
-             "AZ":11395,
-             "MD":11343,
-             "IL":11253,
-             "NM":10739,
-             "MI":10516,
-             "CO":10359,
-             "UT":10106,
-             "NJ":8985,
-             "VT":8982,
-             "ME":8696,
-             "MA":8591,
-             "CT":8514,
-             "NH":8286,
-             "NY":7467,
-             "RI":7434,
-             "CA":6721}
+perCapita = {"US":12146.0,#kWh/capita in 2010 ####ooooh bad, bad data. this is per year, not per hour
+             "WY":27457.0, 
+             "KY":21590.0, 
+             "ND":19477.0,
+             "LA":18852.0,
+             "SC":17903.0,
+             "AL":17293.0,
+             "WV":17290.0,
+             "MS":16793.0,
+             "AR":16519.0,
+             "IN":16315.0,
+             "NE":16293.0,
+             "TN":16117.0,
+             "OK":15568.0,
+             "IA":15048.0,
+             "GA":14578.0,
+             "VA":14489.0,
+             "ID":14475.0,
+             "MO":14345.0,
+             "NC":14325.0,
+             "KS":14263.0,
+             "TX":14179.0,
+             "MT":13992.0,
+             "SD":13916.0,
+             "WA":13557.0,
+             "OH":13388.0,
+             "DE":12904.0,
+             "MN":12845.0,
+             "NV":12497.0,
+             "FL":12379.0,
+             "WI":12159.0,
+             "OR":12077.0,
+             "PA":11759.0,
+             "AZ":11395.0,
+             "MD":11343.0,
+             "IL":11253.0,
+             "NM":10739.0,
+             "MI":10516.0,
+             "CO":10359.0,
+             "UT":10106.0,
+             "NJ":8985.0,
+             "VT":8982.0,
+             "ME":8696.0,
+             "MA":8591.0,
+             "CT":8514.0,
+             "NH":8286.0,
+             "NY":7467.0,
+             "RI":7434.0,
+             "CA":6721.0}
 
+#sets the perCapita dictionary to hourly instead of annual
+for key in perCapita:
+    perCapita[key] /= (24*365)
+    
 citiesList = []
 # If you use the curve from california you can fit it to be approx. sinusoidal. Then all you need is the average demand around which you oscillate and some idea of amplitude.
 # The period and the horizontal shift will remain constant
@@ -181,33 +185,23 @@ class Producer(Entity):
         # the slope of a line that more or less functions as a predictor of output based on price
         # form: kW output = priceCurve * price of power, where priceCurve is currently hardcoded to .5: CM
         self.priceCurve = getPriceCurve(line)
-        self.outputList = self.predictOutput()
-        self.output = 0 #### this might not be used anymore
+        self.expectedOutput = self.predictOutput()
         self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " Producer\n")
-
-    
-    # finds outputList as just what we predicted it to be from the sin function; 
-    # eventually add a little to every point so that you overproduce power and dont leave anyone without
-    def receiveConsumptionPrediction(self, predictionsList, *args):
-        self.outputList = predictionsList
-        self.out.write("Time " + str(self.engine.now) + ": receiveConsumptionPrediction occuring at " + self.name + " Producer\n")
     
     #to replace the above function, this should just generate the prediction so it does not have to wait to receive it. it is the same as the city's version
     def predictOutput(self, *args):
         expectedOutput = []
         for time in range(24):
-            fi = (getPop(self.line) * 1000000 * perCapita[getState(self.line)])
+            fi = (getPop(self.line) * 1000000 * float(perCapita[getState(self.line)]))
             expected = fi/3 * sin(pi/12 * time) + fi
-            expectedOutput.append(expected)
-        self.out.write("Time " + str(self.engine.now) + ": predictDraw occuring at " + self.name + " City\n")
+            expectedOutput.append(expected) 
+        self.out.write("Time " + str(self.engine.now) + ": predictOutput occuring at " + self.name + " Producer\n")
         return expectedOutput
-        
-    #it is trying to send production before it has received the consumption prediction even: CM
-    
+            
     #sends to the city, which will form a local net and send to the gridmaster
     def sendProduction(self, *args):
-        print int(self.engine.now), "outputList", self.outputList
-        self.reqService(minDelay, "receiveProduction", self.outputList[int(self.engine.now)], self.name+"City", 1)
+        #print int(self.engine.now), "expectedOutput", self.expectedOutput
+        self.reqService(minDelay, "receiveProduction", self.expectedOutput[int(self.engine.now)], self.name+"City", 1)
         self.out.write("Time " + str(self.engine.now) + ": sendProduction occuring at " + self.name + " Producer\n")
         
         
@@ -219,10 +213,11 @@ class City(Entity):
         self.name = getName(line)
         self.powerDraw = 0
         #this list is the expected draw of the city, with the indexes as the time that draw is expected, e.g. expectedPowerDraw[1] = (expected draw at hour 1)
-        self.expectedPowerDraw = self.predictDraw()
+        self.productionPrediction = []
+        self.expectedPowerDraw = self.predictDraw() #### ...what?
         print self.expectedPowerDraw
         self.powerProduced = 0 # to be updated as nodes send in their power totals: CM
-        self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " City\n\t" + str(self.expectedPowerDraw))
+        self.out.write("Time " + str(self.engine.now) + ": Creating " + self.name + " City\n\t" + str(self.expectedPowerDraw) + "\n")
     
     def getDifference(self):
         return self.powerProduced - self.powerDraw
@@ -252,17 +247,11 @@ class City(Entity):
         #every time it updates actual consumption, it should receive production as well and then send the net
         self.reqService(minDelay, "sendProduction", None, self.name+"Producer", 1)
         
-    #sends the expected consumption at each hour to the producers so that they can select the amount of 
-    def sendConsumptionPrediction(self, *args):
-        self.reqService(minDelay, "receiveConsumptionPrediction", self.expectedPowerDraw, self.name+"Producer", 1)
-        self.out.write("Time " + str(self.engine.now) + ": sendConsumptionPrediction occuring at " + self.name + " City\n")
-        
     #passes the net consumption of the city to the GridMaster
     def sendNet(self, *args):
         self.reqService(minDelay, "receiveNet", [self.name, self.getDifference()], "GridMaster", 0)
         self.out.write("Time " + str(self.engine.now) + ": sendNet occuring at " + self.name + " City\n")
-
-        
+    
 
 # keeps track of the grid as a whole, likely the subsidy-adding will be implemented here
 class GridMaster(Entity):
